@@ -1,4 +1,4 @@
-# chainer-MeanTeacher
+# chainer-MeanTeachers
 
 ## Reference
 
