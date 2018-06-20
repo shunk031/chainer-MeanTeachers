@@ -7,7 +7,10 @@ from mean_teachers.lossfun import (
     symmetric_mse_loss,
     softmax_mse_loss,
 )
-from mean_teachers.functions import get_current_consistency_weight
+from mean_teachers.functions import (
+    get_current_consistency_weight,
+    update_ema_variables,
+)
 
 
 class MeanTeacherUpdater(training.StandardUpdater):
@@ -17,6 +20,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
                  ema_iter,
                  optimizer,
                  ema_model,
+                 ema_decay=0.999,
                  distance_const=-1,
                  consistency=None,
                  consistency_lossfun=softmax_mse_loss,
@@ -28,6 +32,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
 
         self._iterators['ema'] = ema_iter
         self.ema_model = ema_model
+        self.ema_decay = ema_decay
         self.distance_const = distance_const
         self.consistency = consistency
         self.consistency_lossfun = consistency_lossfun
@@ -62,7 +67,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
         ema_class_loss = self.loss_func(ema_logit, target_var) / batch_size
 
         if self.consistency:
-            consistency_weight = get_current_consistency_weight()
+            consistency_weight = get_current_consistency_weight(self.epoch)
             consistency_loss = consistency_weight * self.consistency_lossfun(cons_logit, ema_logit) / batch_size
         else:
             consistency_loss = 0
@@ -71,6 +76,8 @@ class MeanTeacherUpdater(training.StandardUpdater):
         model.cleargrads()
         loss.backward()
         optimizer.update()
+
+        update_ema_variables(model, self.ema_model, self.ema_decay, self.epoch)
 
         chainer.report({
             'accuracy': F.accuracy(class_logit, target_var),

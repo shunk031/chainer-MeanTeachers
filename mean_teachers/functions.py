@@ -12,3 +12,7 @@ def sigmoid_rampup(current, rampup_length):
         current = np.clip(current, 0, 0, rampup_length)
         phase = 1.0 - current / rampup_length
         return (np.exp(-0.5 * phase * phase))
+
+
+def update_ema_variables(model, ema_model, alpha, global_step):
+    raise NotImplementedError()
