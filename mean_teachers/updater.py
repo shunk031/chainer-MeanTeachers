@@ -3,11 +3,11 @@ import chainer.functions as F
 from chainer import training
 from chainer.dataset import convert
 
-from mean_teacher.lossfun import (
+from mean_teachers.lossfun import (
     symmetric_mse_loss,
     softmax_mse_loss,
 )
-from mean_teacher.functions import get_current_consistency_weight
+from mean_teachers.functions import get_current_consistency_weight
 
 
 class MeanTeacherUpdater(training.StandardUpdater):
