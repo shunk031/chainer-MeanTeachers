@@ -1,7 +1,4 @@
 import argparse
-import random
-
-import numpy as np
 
 import chainer
 from chainer import training
@@ -15,52 +12,9 @@ from mean_teachers.lossfun import (
 )
 
 
-class PreprocessedDataset(chainer.dataset.DatasetMixin):
-
-    def __init__(self, path, root, mean, crop_size, random=True):
-        self.base = chainer.datasets.LabeledImageDataset(path, root)
-        self.mean = mean.astype(np.float32)
-        self.crop_size = crop_size
-        self.random = random
-
-    def __len__(self):
-        return len(self.base)
-
-    def get_example(self, i):
-        # It reads the i-th image/label pair and return a preprocessed image.
-        # It applies following preprocesses:
-        #     - Cropping (random or center rectangular)
-        #     - Random flip
-        #     - Scaling to [0, 1] value
-        crop_size = self.crop_size
-
-        image, label = self.base[i]
-        _, h, w = image.shape
-
-        if self.random:
-            # Randomly crop a region and flip the image
-            top = random.randint(0, h - crop_size - 1)
-            left = random.randint(0, w - crop_size - 1)
-            if random.randint(0, 1):
-                image = image[:, :, ::-1]
-        else:
-            # Crop the center
-            top = (h - crop_size) // 2
-            left = (w - crop_size) // 2
-        bottom = top + crop_size
-        right = left + crop_size
-
-        image = image[:, top:bottom, left:right]
-        image -= self.mean[:, top:bottom, left:right]
-        image *= (1.0 / 255.0)  # Scale to [0, 1]
-        return image, label
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Learning convnet from ILSVRC2012 dataset')
-    parser.add_argument('train', help='Path to training image-label list file')
-    parser.add_argument('val', help='Path to validation image-label list file')
     parser.add_argument('--arch', '-a', choices=archs.keys(), default='resnet50',
                         help='Convnet architecture')
     parser.add_argument('--batchsize', '-B', type=int, default=32,
@@ -90,8 +44,6 @@ def parse_args():
                         help='Output directory')
     parser.add_argument('--root', '-R', default='.',
                         help='Root directory path of image files')
-    parser.add_argument('--val_batchsize', '-b', type=int, default=250,
-                        help='Validation minibatch size')
     parser.add_argument('--test', action='store_true')
     parser.set_defaults(test=False)
 
@@ -102,26 +54,23 @@ def main():
 
     args = parse_args()
 
-    model = archs[args.arch](pretrained_model='auto')
-    ema_model = archs[args.arch](pretrained_model='auto')
+    model = archs[args.arch]()
+    ema_model = archs[args.arch]()
 
     if args.gpu >= 0:
         chainer.backends.cuda.get_device_from_id(args.gpu).use()  # Make the GPU current
         model.to_gpu()
         ema_model.to_gpu()
 
-    # Load the datasets and mean file
-    mean = np.load(args.mean)
-    train = PreprocessedDataset(args.train, args.root, mean, model.insize)
-    val = PreprocessedDataset(args.val, args.root, mean, model.insize, False)
-    # These iterators load the images with subprocesses running in parallel to
-    # the training/validation.
+    train, val = chainer.datasets.get_cifar10()
+    _, test = chainer.datasets.get_cifar10(withlabel=False)
+
     train_iter = chainer.iterators.MultiprocessIterator(
         train, args.batchsize, n_processes=args.loaderjob)
     val_iter = chainer.iterators.MultiprocessIterator(
-        val, args.val_batchsize, repeat=False, n_processes=args.loaderjob)
+        val, args.batchsize, repeat=False, n_processes=args.loaderjob)
     ema_iter = chainer.iterators.MultiprocessIterator(
-        val, args.val_batchsize, repeat=False, n_processes=args.loaderjob)
+        test, args.batchsize, repeat=False, n_processes=args.loaderjob)
 
     # Set up an optimizer
     optimizer = chainer.optimizers.MomentumSGD(lr=0.01, momentum=0.9)
@@ -134,7 +83,7 @@ def main():
         consistency_lossfun = softmax_kl_loss
     updater = MeanTeacherUpdater(train_iter, ema_iter, optimizer, ema_model,
                                  ema_decay=args.ema_decay,
-                                 distance_const=args.distance_const,
+                                 distance_cost=args.distance_cost,
                                  consistency=args.consistency,
                                  consistency_lossfun=consistency_lossfun, device=args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), args.out)
