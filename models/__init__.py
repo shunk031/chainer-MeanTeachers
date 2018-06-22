@@ -1,7 +1,7 @@
-import resnet
+from models import resnet
 
 archs = {
-    'resnet50': resnet.ResNet50Layers,
-    'resnet101': resnet.ResNet101Layers,
-    'resnet152': resnet.ResNet152Layers,
+    'resnet50': resnet.ResNet50,
+    'resnet101': resnet.ResNet101,
+    'resnet152': resnet.ResNet152,
 }
