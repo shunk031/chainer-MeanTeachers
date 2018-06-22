@@ -21,7 +21,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
                  optimizer,
                  ema_model,
                  ema_decay=0.999,
-                 distance_const=-1,
+                 distance_cost=-1,
                  consistency=None,
                  consistency_lossfun=softmax_mse_loss,
                  converter=convert.concat_examples,
@@ -33,7 +33,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
         self._iterators['ema'] = ema_iter
         self.ema_model = ema_model
         self.ema_decay = ema_decay
-        self.distance_const = distance_const
+        self.distance_cost = distance_cost
         self.consistency = consistency
         self.consistency_lossfun = consistency_lossfun
 
@@ -56,9 +56,9 @@ class MeanTeacherUpdater(training.StandardUpdater):
         logit1, logit2 = model_out
         ema_logit, _ = ema_model_out
 
-        if self.distance_const >= 0:
+        if self.distance_cost >= 0:
             class_logit, cons_logit = logit1, logit2
-            res_loss = self.distance_const * symmetric_mse_loss(class_logit, cons_logit) / batch_size
+            res_loss = self.distance_cost * symmetric_mse_loss(class_logit, cons_logit) / batch_size
         else:
             class_logit, cons_logit = logit1, logit1
             res_loss = 0
