@@ -15,4 +15,7 @@ def sigmoid_rampup(current, rampup_length):
 
 
 def update_ema_variables(model, ema_model, alpha, global_step):
-    raise NotImplementedError()
+    alpha = min(1 - 1 / (global_step + 1), alpha)
+
+    for ema_param, model_param in zip(ema_model.params(), model.params()):
+        ema_param.array = alpha * ema_param.array + (1 - alpha) * model_param.array
