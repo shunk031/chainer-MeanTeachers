@@ -26,7 +26,8 @@ class MeanTeacherUpdater(training.StandardUpdater):
                  consistency_lossfun=softmax_mse_loss,
                  converter=convert.concat_examples,
                  device=None,
-                 loss_func=F.softmax_cross_entropy):
+                 loss_func=F.softmax_cross_entropy,
+                 acc_fun=F.accuracy):
         super(MeanTeacherUpdater, self).__init__(
             labeled_iter, optimizer, converter, device, loss_func)
 
@@ -36,6 +37,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
         self.distance_cost = distance_cost
         self.consistency = consistency
         self.consistency_lossfun = consistency_lossfun
+        self.acc_fun = acc_fun
 
     def update_core(self):
         labeled_batch = self._iterators['main'].next()
@@ -80,7 +82,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
         update_ema_variables(model, self.ema_model, self.ema_decay, self.epoch)
 
         chainer.report({
-            'accuracy': F.accuracy(class_logit, target_var),
+            'accuracy': self.acc_fun(class_logit, target_var),
             'loss': loss,
             'class_loss': class_loss,
             'ema_loss': ema_class_loss,
