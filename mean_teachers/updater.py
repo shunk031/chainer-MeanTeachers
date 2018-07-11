@@ -23,6 +23,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
                  ema_decay=0.999,
                  distance_cost=-1,
                  consistency=None,
+                 consistency_rampup=30,
                  consistency_lossfun=softmax_mse_loss,
                  converter=convert.concat_examples,
                  device=None,
@@ -36,6 +37,7 @@ class MeanTeacherUpdater(training.StandardUpdater):
         self.ema_decay = ema_decay
         self.distance_cost = distance_cost
         self.consistency = consistency
+        self.consistency_rampup = self.consistency_rampup
         self.consistency_lossfun = consistency_lossfun
         self.acc_fun = acc_fun
 
@@ -69,7 +71,8 @@ class MeanTeacherUpdater(training.StandardUpdater):
         ema_class_loss = self.loss_func(ema_logit, target_var) / batch_size
 
         if self.consistency:
-            consistency_weight = get_current_consistency_weight(self.epoch)
+            consistency_weight = get_current_consistency_weight(
+                self.epoch, self.consistency, self.consistency_rampup)
             consistency_loss = consistency_weight * self.consistency_lossfun(cons_logit, ema_logit) / batch_size
         else:
             consistency_loss = 0
