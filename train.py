@@ -70,7 +70,7 @@ def main():
     val_iter = chainer.iterators.MultiprocessIterator(
         val, args.batchsize, repeat=False, n_processes=args.loaderjob)
     ema_iter = chainer.iterators.MultiprocessIterator(
-        test, args.batchsize, repeat=False, n_processes=args.loaderjob)
+        test, args.batchsize, n_processes=args.loaderjob)
 
     # Set up an optimizer
     optimizer = chainer.optimizers.MomentumSGD(lr=0.01, momentum=0.9)
