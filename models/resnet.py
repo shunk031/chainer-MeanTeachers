@@ -65,7 +65,10 @@ class ResNet(chainer.Chain):
         h = self.res6(h)
         h = F.average_pooling_2d(h, h.shape[2:])
 
-        return self.fc7_1(h), self.fc7_2(h)
+        if chainer.config.train:
+            return self.fc7_1(h), self.fc7_2(h)
+        else:
+            return self.fc7_1(h)
 
 
 class ResNet50(ResNet):
